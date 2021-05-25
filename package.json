@@ -1,0 +1,30 @@
+{
+  "name": "chest-of-notes-server",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "forever index.js",
+    "watch": "forever -w index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/solarlime/chest-of-notes-server.git"
+  },
+  "author": "solarlime",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/solarlime/chest-of-notes-server/issues"
+  },
+  "homepage": "https://github.com/solarlime/chest-of-notes-server#readme",
+  "dependencies": {
+    "@koa/cors": "^3.1.0",
+    "@koa/router": "^10.0.0",
+    "forever": "^3.0.4",
+    "koa": "^2.13.1",
+    "koa-body": "^4.2.0",
+    "mongodb": "^3.6.6"
+  },
+  "devDependencies": {
+    "dotenv": "^10.0.0"
+  }
+}
