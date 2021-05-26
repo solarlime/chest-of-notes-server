@@ -148,4 +148,4 @@ router.post(routes.update, async (ctx) => {
 app.use(router.routes())
   .use(router.allowedMethods());
 
-app.listen(PORT, () => { console.log(`Server is working on ${PORT}`) });
+app.listen(PORT, () => { console.log(`Server is working on ${PORT}`); });

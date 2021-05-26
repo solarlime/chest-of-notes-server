@@ -1,10 +1,11 @@
 {
   "name": "chest-of-notes-server",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "src/index.js",
   "scripts": {
-    "start": "forever index.js",
-    "watch": "forever -w index.js"
+    "start": "webpack serve --config webpack.dev.js",
+    "build": "webpack --config webpack.prod.js",
+    "lint": "eslint ."
   },
   "repository": {
     "type": "git",
@@ -19,12 +20,26 @@
   "dependencies": {
     "@koa/cors": "^3.1.0",
     "@koa/router": "^10.0.0",
-    "forever": "^3.0.4",
     "koa": "^2.13.1",
     "koa-body": "^4.2.0",
     "mongodb": "^3.6.6"
   },
   "devDependencies": {
-    "dotenv": "^10.0.0"
+    "@babel/cli": "^7.14.3",
+    "@babel/core": "^7.14.3",
+    "@babel/eslint-parser": "^7.14.3",
+    "@babel/preset-env": "^7.14.2",
+    "babel-loader": "^8.2.2",
+    "core-js": "^3.13.0",
+    "dotenv": "^10.0.0",
+    "eslint": "^7.27.0",
+    "eslint-config-airbnb-base": "^14.2.1",
+    "eslint-import-resolver-node": "^0.3.4",
+    "eslint-plugin-import": "^2.23.3",
+    "regenerator-runtime": "^0.13.7",
+    "webpack": "^5.37.1",
+    "webpack-cli": "^4.7.0",
+    "webpack-dev-server": "^3.11.2",
+    "webpack-merge": "^5.7.3"
   }
 }

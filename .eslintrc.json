@@ -1,0 +1,25 @@
+{
+  "env": {
+    "browser": true,
+    "es6": true
+  },
+  "globals": {
+    "Atomics": "readonly",
+    "SharedArrayBuffer": "readonly"
+  },
+  "extends": [
+    "airbnb-base"
+  ],
+  "parserOptions": {
+    "ecmaVersion": 2020,
+    "sourceType": "module"
+  },
+  "parser": "@babel/eslint-parser",
+  "rules": {
+    "no-restricted-syntax": [
+      "error",
+      "LabeledStatement",
+      "WithStatement"
+    ]
+  }
+}
