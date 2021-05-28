@@ -13,9 +13,8 @@ const { MongoClient } = require('mongodb');
 dotenv.config();
 const app = new Koa();
 const router = new Router();
-const url = process.env.MONGO_URL;
+const { MONGO_URL, PORT } = process.env;
 const dbName = 'chest-of-notes';
-const PORT = 3001;
 
 /**
  * Define the routes for our convenience
@@ -56,8 +55,7 @@ app.use(async (ctx, next) => {
   // eslint-disable-next-line consistent-return
   async function run() {
     console.log('In');
-    console.log('url is ', url);
-    const client = new MongoClient(url, { useUnifiedTopology: true });
+    const client = new MongoClient(MONGO_URL, { useUnifiedTopology: true });
     try {
       await client.connect();
       console.log('Connected correctly to server');
