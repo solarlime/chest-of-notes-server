@@ -13,6 +13,7 @@ on:
 env:
   DEPLOY_PATH: /var/www
   BUILD_SCRIPT_OUTPUT: dist
+  GITHUB_REPO: chest-of-notes-server
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
@@ -43,7 +44,7 @@ jobs:
         with:
           src: ${{ env.BUILD_SCRIPT_OUTPUT }}
           host: ${{ secrets.DEPLOY_SERVER_HOST }}
-          remote: ${{ env.DEPLOY_PATH }}/${{ env.GITHUB_REPOSITORY }}
+          remote: ${{ env.DEPLOY_PATH }}/${{ env.GITHUB_REPO }}
           port: ${{ secrets.DEPLOY_SERVER_PORT }}
           user: ${{ secrets.DEPLOY_SERVER_USERNAME }}
           key: ${{ secrets.DEPLOY_SERVER_KEY }}
