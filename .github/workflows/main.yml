@@ -42,7 +42,7 @@ jobs:
       - name: Setup SSH
         uses: MrSquaare/ssh-setup-action@v1
         with:
-          host: github.com
+          host: ${{ secrets.DEPLOY_SERVER_HOST }}
           private-key: ${{ secrets.DEPLOY_SERVER_KEY }}
 
       - name: Fetch dependencies
