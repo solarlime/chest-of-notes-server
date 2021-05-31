@@ -1,0 +1,76 @@
+# This is a basic workflow to help you get started with Actions
+
+name: CI
+
+# Controls when the action will run.
+on:
+  # Triggers the workflow on push or pull request events but only for the master branch
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+env:
+  DEPLOY_PATH: /var/www
+  BUILD_SCRIPT_OUTPUT: dist
+  GITHUB_REPO: chest-of-notes-server
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # This workflow contains a single job called "deploy"
+  deploy:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v1
+        with:
+          node-version: '14'
+
+      - name: Install dependencies
+        run: yarn
+
+      - name: Linting & Testing
+        run: yarn run lint
+
+      - name: Building
+        run: yarn run build
+
+      - name: Pre-deploy
+        uses: nogsantos/scp-deploy@master
+        with:
+          src: ./package.json
+          host: ${{ secrets.DEPLOY_SERVER_HOST }}
+          remote: ${{ env.DEPLOY_PATH }}/${{ env.GITHUB_REPO }}
+          port: ${{ secrets.DEPLOY_SERVER_PORT }}
+          user: ${{ secrets.DEPLOY_SERVER_USERNAME }}
+          key: ${{ secrets.DEPLOY_SERVER_KEY }}
+
+      - name: Operations
+        uses: matheusvanzan/sshpass-action@v2
+        with:
+          host: ${{ secrets.DEPLOY_SERVER_HOST }}
+          user: ${{ secrets.DEPLOY_SERVER_USERNAME }}
+          pass: ${{ secrets.DEPLOY_SERVER_PASS }}
+          port: ${{ secrets.DEPLOY_SERVER_PORT }}
+          run: |
+            cd ${{ env.DEPLOY_PATH }}/${{ env.GITHUB_REPO }}
+            rm -rf node_modules
+            yarn
+
+      - name: Deploy
+        uses: nogsantos/scp-deploy@master
+        with:
+          src: ${{ env.BUILD_SCRIPT_OUTPUT }}
+          host: ${{ secrets.DEPLOY_SERVER_HOST }}
+          remote: ${{ env.DEPLOY_PATH }}/${{ env.GITHUB_REPO }}
+          port: ${{ secrets.DEPLOY_SERVER_PORT }}
+          user: ${{ secrets.DEPLOY_SERVER_USERNAME }}
+          key: ${{ secrets.DEPLOY_SERVER_KEY }}
+
+      - name: preview-url
+        run: |
+          echo "Deployed at the server!"
