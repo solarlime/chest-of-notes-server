@@ -39,6 +39,13 @@ jobs:
       - name: Building
         run: yarn run build
 
+      - name: Setup SSH
+        uses: MrSquaare/ssh-setup-action@v1
+        with:
+          host: github.com
+          private-key: ${{ secrets.DEPLOY_SERVER_KEY }}
+        run: cd ${{ env.DEPLOY_PATH }}/${{ env.GITHUB_REPO }} && yarn && exit
+
       - name: Deploy
         uses: nogsantos/scp-deploy@master
         with:
