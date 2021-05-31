@@ -42,7 +42,7 @@ jobs:
       - name: Execute SSH commmands on remote server
         uses: JimCronqvist/action-ssh@master
         with:
-          hosts: ${{ secrets.DEPLOY_SERVER_USERNAME }}@${{ secrets.DEPLOY_SERVER_HOST }}
+          hosts: `${{ secrets.DEPLOY_SERVER_USERNAME }}@${{ secrets.DEPLOY_SERVER_HOST }}:22`
           privateKey: ${{ secrets.DEPLOY_SERVER_KEY }}
           command: cd ${{ env.DEPLOY_PATH }}/${{ env.GITHUB_REPO }} && yarn && exit
 
