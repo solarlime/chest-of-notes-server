@@ -44,6 +44,8 @@ jobs:
         with:
           host: github.com
           private-key: ${{ secrets.DEPLOY_SERVER_KEY }}
+
+      - name: Fetch dependencies
         run: cd ${{ env.DEPLOY_PATH }}/${{ env.GITHUB_REPO }} && yarn && exit
 
       - name: Deploy
