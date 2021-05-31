@@ -39,11 +39,11 @@ jobs:
         run: yarn run build
 
       - name: Deploy
-        uses: horochx/deploy-via-scp@master
+        uses: nogsantos/scp-deploy@master
         with:
-          local: ${{ env.BUILD_SCRIPT_OUTPUT }}
-          remote: ${{ env.DEPLOY_PATH }}/${{ env.GITHUB_REPOSITORY }}
+          src: ${{ env.BUILD_SCRIPT_OUTPUT }}
           host: ${{ secrets.DEPLOY_SERVER_HOST }}
+          remote: ${{ env.DEPLOY_PATH }}/${{ env.GITHUB_REPOSITORY }}
           port: ${{ secrets.DEPLOY_SERVER_PORT }}
           user: ${{ secrets.DEPLOY_SERVER_USERNAME }}
           key: ${{ secrets.DEPLOY_SERVER_KEY }}
