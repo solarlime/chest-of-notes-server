@@ -39,14 +39,12 @@ jobs:
       - name: Building
         run: yarn run build
 
-      - name: Setup SSH
-        uses: MrSquaare/ssh-setup-action@v1
+      - name: Execute SSH commmands on remote server
+        uses: JimCronqvist/action-ssh@master
         with:
-          host: ${{ secrets.DEPLOY_SERVER_HOST }}
-          private-key: ${{ secrets.DEPLOY_SERVER_KEY }}
-
-      - name: Fetch dependencies
-        run: cd ${{ env.DEPLOY_PATH }}/${{ env.GITHUB_REPO }} && yarn && exit
+          hosts: ${{ secrets.DEPLOY_SERVER_USERNAME }}@${{ secrets.DEPLOY_SERVER_HOST }}
+          privateKey: ${{ secrets.DEPLOY_SERVER_KEY }}
+          command: cd ${{ env.DEPLOY_PATH }}/${{ env.GITHUB_REPO }} && yarn && exit
 
       - name: Deploy
         uses: nogsantos/scp-deploy@master
