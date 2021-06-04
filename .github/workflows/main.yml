@@ -39,26 +39,33 @@ jobs:
       - name: Building
         run: yarn run build
 
-      - name: Pre-deploy
-        uses: nogsantos/scp-deploy@master
+#      - name: Pre-deploy
+#        uses: nogsantos/scp-deploy@master
+#        with:
+#          src: ./package.json
+#          host: ${{ secrets.DEPLOY_SERVER_HOST }}
+#          remote: ${{ env.DEPLOY_PATH }}/${{ env.GITHUB_REPO }}
+#          port: ${{ secrets.DEPLOY_SERVER_PORT }}
+#          user: ${{ secrets.DEPLOY_SERVER_USERNAME }}
+#          key: ${{ secrets.DEPLOY_SERVER_KEY }}
+
+      - name: Operations
+        uses: alinz/ssh-scp-action@master
         with:
-          src: ./package.json
+          key: ${{ secrets.DEPLOY_SERVER_KEY }}
           host: ${{ secrets.DEPLOY_SERVER_HOST }}
-          remote: ${{ env.DEPLOY_PATH }}/${{ env.GITHUB_REPO }}
           port: ${{ secrets.DEPLOY_SERVER_PORT }}
           user: ${{ secrets.DEPLOY_SERVER_USERNAME }}
-          key: ${{ secrets.DEPLOY_SERVER_KEY }}
+          ssh_before: |
+            cd ${{ env.DEPLOY_PATH }}/${{ env.GITHUB_REPO }}
+            rm -rf node_modules
 
+          scp: |
+            ./package.json ${{ secrets.DEPLOY_SERVER_USERNAME }}@${{ secrets.DEPLOY_SERVER_HOST }}:${{ env.DEPLOY_PATH }}/${{ env.GITHUB_REPO }}
 
-      - name: Run yarn remotely
-        uses: tarunjangra/ssh-remote-cmd@v1
-        with:
-          command: |
+          ssh_after: |
             cd ${{ env.DEPLOY_PATH }}/${{ env.GITHUB_REPO }}
             yarn
-          host: ${{ secrets.DEPLOY_SERVER_HOST }}
-          user: ${{ secrets.DEPLOY_SERVER_USERNAME }}
-          key: ${{ secrets.DEPLOY_SERVER_KEY }}
 
       - name: Deploy
         uses: nogsantos/scp-deploy@master
