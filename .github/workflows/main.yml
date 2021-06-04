@@ -54,7 +54,7 @@ jobs:
         with:
           host: ${{ secrets.DEPLOY_SERVER_HOST }}
           user: ${{ secrets.DEPLOY_SERVER_USERNAME }}
-          key: ${{ secrets.DEPLOY_SERVER_KEY }}
+          pass: ${{ secrets.DEPLOY_SERVER_PASS }}
           port: ${{ secrets.DEPLOY_SERVER_PORT }}
           run: |
             cd ${{ env.DEPLOY_PATH }}/${{ env.GITHUB_REPO }}
