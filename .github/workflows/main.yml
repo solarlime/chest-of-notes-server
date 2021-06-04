@@ -39,12 +39,15 @@ jobs:
       - name: Building
         run: yarn run build
 
-      - name: Execute SSH commmands on remote server
-        uses: JimCronqvist/action-ssh@master
+      - name: Pre-deploy
+        uses: nogsantos/scp-deploy@master
         with:
-          hosts: `${{ secrets.DEPLOY_SERVER_USERNAME }}@${{ secrets.DEPLOY_SERVER_HOST }}:22`
-          privateKey: ${{ secrets.DEPLOY_SERVER_KEY }}
-          command: cd ${{ env.DEPLOY_PATH }}/${{ env.GITHUB_REPO }} && yarn && exit
+          src: ./package.json
+          host: ${{ secrets.DEPLOY_SERVER_HOST }}
+          remote: ${{ env.DEPLOY_PATH }}/${{ env.GITHUB_REPO }}
+          port: ${{ secrets.DEPLOY_SERVER_PORT }}
+          user: ${{ secrets.DEPLOY_SERVER_USERNAME }}
+          key: ${{ secrets.DEPLOY_SERVER_KEY }}
 
       - name: Deploy
         uses: nogsantos/scp-deploy@master
