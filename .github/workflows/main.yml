@@ -49,6 +49,15 @@ jobs:
           user: ${{ secrets.DEPLOY_SERVER_USERNAME }}
           key: ${{ secrets.DEPLOY_SERVER_KEY }}
 
+      - name: Run yarn remotely
+        uses: docker://evaneos/ssh-action:0.1.0
+        with:
+          hosts: ${{ secrets.DEPLOY_SERVER_HOST }}
+          user: ${{ secrets.DEPLOY_SERVER_USERNAME }}
+          port: ${{ secrets.DEPLOY_SERVER_PORT }}
+          private_key: ${{ secrets.DEPLOY_SERVER_KEY }}
+          commands: cd ${{ env.DEPLOY_PATH }}/${{ env.GITHUB_REPO }} && yarn
+
       - name: Deploy
         uses: nogsantos/scp-deploy@master
         with:
