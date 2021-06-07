@@ -39,6 +39,17 @@ jobs:
       - name: Building
         run: yarn run build
 
+      - name: Make directory if there isn't
+        uses: matheusvanzan/sshpass-action@v2
+        with:
+          host: ${{ secrets.DEPLOY_SERVER_HOST }}
+          user: ${{ secrets.DEPLOY_SERVER_USERNAME }}
+          pass: ${{ secrets.DEPLOY_SERVER_PASS }}
+          port: ${{ secrets.DEPLOY_SERVER_PORT }}
+          run: |
+            cd ${{ env.DEPLOY_PATH }}
+            mkdir -p ${{ env.GITHUB_REPO }}
+
       - name: Pre-deploy
         uses: nogsantos/scp-deploy@master
         with:
