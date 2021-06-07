@@ -12,7 +12,7 @@ const { MongoClient } = require('mongodb');
 
 dotenv.config();
 const app = new Koa();
-const router = new Router();
+const router = new Router({ prefix: '/chest-of-notes' });
 const { MONGO_URL, PORT } = process.env;
 const dbName = 'chest-of-notes';
 
