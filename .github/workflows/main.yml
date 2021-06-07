@@ -79,9 +79,8 @@ jobs:
           pass: ${{ secrets.DEPLOY_SERVER_PASS }}
           port: ${{ secrets.DEPLOY_SERVER_PORT }}
           run: |
-            cd /var/www
-            pm2 reload ecosystem.config.js --only chest-of-notes-server
-#            pm2 restart ${{ env.DEPLOY_PATH }}/ecosystem.config.js --only ${{ env.GITHUB_REPO }}
+            cd ${{ env.DEPLOY_PATH }}
+            pm2 reload ecosystem.config.js --only ${{ env.GITHUB_REPO }}
 
       - name: preview-url
         run: |
