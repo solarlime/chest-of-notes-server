@@ -1,5 +1,5 @@
 const dotenv = require('dotenv');
-const fs = require('fs');
+const { Readable } = require('stream');
 const Koa = require('koa');
 const Router = require('@koa/router');
 const koaBody = require('koa-body');
@@ -103,22 +103,22 @@ router.post(routes.update, async (ctx) => {
   console.log('middleware');
   const { col, dbFiles } = ctx.state;
   try {
-    const { body, files } = ctx.request;
-    if (body.content) {
+    const { body } = ctx.request;
+    const obj = JSON.parse(body);
+    if (body.type === 'text') {
       await col.insertOne({
         id: body.id, name: body.name, type: body.type, content: body.content,
       });
     } else {
-      const fileBuffer = Buffer.from(files.content);
-      console.log(fileBuffer);
+      const fileBuffer = Buffer.from(obj.content, 'base64');
       const bucket = new GridFSBucket(dbFiles);
       const uploadStream = bucket.openUploadStream('file');
-      const readStream = fs.createReadStream(fileBuffer);
-      readStream.pipe(uploadStream).on('finish', () => console.log('done'));
+      const readStream = Readable.from(fileBuffer)
+        .on('finish', () => {
+          readStream.pipe(uploadStream);
+        });
     }
-    // const { body } = ctx.request;
-    // const document = (body.content) ? body : Object.assign(ctx.request.body, ctx.request.files);
-    return { status: 'Added', data: Object.assign(body, files) };
+    return { status: 'Added', data: body };
   } catch (e) {
     return { status: 'Not added', data: e.message };
   }
