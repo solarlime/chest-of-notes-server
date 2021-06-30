@@ -1,9 +1,10 @@
 const dotenv = require('dotenv');
+const { Readable } = require('stream');
 const Koa = require('koa');
 const Router = require('@koa/router');
 const koaBody = require('koa-body');
 const koaCors = require('@koa/cors');
-const { MongoClient } = require('mongodb');
+const { MongoClient, GridFSBucket } = require('mongodb');
 
 /**
  * Make a serverless function with Koa
@@ -15,6 +16,7 @@ const app = new Koa();
 const router = new Router({ prefix: '/chest-of-notes' });
 const { MONGO_URL, PORT } = process.env;
 const dbName = 'chest-of-notes';
+const filesDB = 'db-files';
 
 /**
  * Define the routes for our convenience
@@ -60,6 +62,7 @@ app.use(async (ctx, next) => {
       await client.connect();
       console.log('Connected correctly to server');
       const db = client.db(dbName);
+      ctx.state.dbFiles = client.db(filesDB);
 
       const col = db.collection('notes');
       // Save col in ctx.state for sending it to middlewares
@@ -98,13 +101,24 @@ app.use(async (ctx, next) => {
  */
 router.post(routes.update, async (ctx) => {
   console.log('middleware');
-  const { col } = ctx.state;
+  const { col, dbFiles } = ctx.state;
   try {
-    const document = JSON.parse(ctx.request.body);
-    await col.insertOne({
-      id: document.id, name: document.name, type: document.type, content: document.content,
-    });
-    return { status: 'Added', data: document };
+    const { body } = ctx.request;
+    const obj = JSON.parse(body);
+    if (body.type === 'text') {
+      await col.insertOne({
+        id: body.id, name: body.name, type: body.type, content: body.content,
+      });
+    } else {
+      const fileBuffer = Buffer.from(obj.content, 'base64');
+      const bucket = new GridFSBucket(dbFiles);
+      const uploadStream = bucket.openUploadStream('file');
+      const readStream = Readable.from(fileBuffer)
+        .on('finish', () => {
+          readStream.pipe(uploadStream);
+        });
+    }
+    return { status: 'Added', data: body };
   } catch (e) {
     return { status: 'Not added', data: e.message };
   }

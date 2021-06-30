@@ -34,9 +34,9 @@
     "webpack-cli": "^4.7.0"
   },
   "dependencies": {
-    "dotenv": "^10.0.0",
     "@koa/cors": "^3.1.0",
     "@koa/router": "^10.0.0",
+    "dotenv": "^10.0.0",
     "koa": "^2.13.1",
     "koa-body": "^4.2.0",
     "mongodb": "^3.6.6",
