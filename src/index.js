@@ -47,6 +47,8 @@ app.use(koaBody({
   multipart: true,
   parsedMethods: ['POST', 'GET'],
   json: true,
+  jsonLimit: '50mb',
+  textLimit: '50mb',
 }));
 
 /**
@@ -72,8 +74,10 @@ app.use(async (ctx, next) => {
     } catch (err) {
       console.log(err.stack);
     } finally {
-      await client.close();
-      console.log('Closed!');
+      if (JSON.parse(ctx.request.body).type === 'text') {
+        await client.close();
+        console.log('Closed!');
+      }
     }
   }
 
@@ -105,18 +109,35 @@ router.post(routes.update, async (ctx) => {
   try {
     const { body } = ctx.request;
     const obj = JSON.parse(body);
-    if (body.type === 'text') {
+    if (obj.type === 'text') {
       await col.insertOne({
-        id: body.id, name: body.name, type: body.type, content: body.content,
+        id: obj.id, name: obj.name, type: obj.type, content: obj.content,
       });
     } else {
+      await col.insertOne({
+        id: obj.id, name: obj.name, type: obj.type,
+      });
       const fileBuffer = Buffer.from(obj.content, 'base64');
+      const readStream = Readable.from(fileBuffer);
       const bucket = new GridFSBucket(dbFiles);
       const uploadStream = bucket.openUploadStream('file');
-      const readStream = Readable.from(fileBuffer)
-        .on('finish', () => {
-          readStream.pipe(uploadStream);
+      readStream.pipe(uploadStream);
+
+      await new Promise((resolve, reject) => {
+        readStream.on('end', () => {
+          console.log('Reading ended!');
+          resolve();
         });
+        uploadStream.on('close', () => {
+          console.log('Stream closed!');
+          readStream.destroy();
+          resolve();
+        });
+        readStream.on('error', (e) => {
+          console.log('Error!', e.message);
+          reject();
+        });
+      });
     }
     return { status: 'Added', data: body };
   } catch (e) {
