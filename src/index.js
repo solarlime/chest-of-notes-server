@@ -13,7 +13,8 @@ const { MongoClient, GridFSBucket } = require('mongodb');
 
 dotenv.config();
 const app = new Koa();
-const router = new Router({ prefix: '/chest-of-notes' });
+const prefix = '/chest-of-notes';
+const router = new Router({ prefix });
 const { MONGO_URL, PORT } = process.env;
 const dbName = 'chest-of-notes';
 const filesDB = 'db-files';
@@ -74,7 +75,11 @@ app.use(async (ctx, next) => {
     } catch (err) {
       console.log(err.stack);
     } finally {
-      if (JSON.parse(ctx.request.body).type === 'text') {
+      let type = null;
+      if (ctx.request.url === prefix + routes.update) {
+        type = JSON.parse(ctx.request.body).type;
+      }
+      if (!type || type === 'text') {
         await client.close();
         console.log('Closed!');
       }
@@ -120,7 +125,7 @@ router.post(routes.update, async (ctx) => {
       const fileBuffer = Buffer.from(obj.content, 'base64');
       const readStream = Readable.from(fileBuffer);
       const bucket = new GridFSBucket(dbFiles);
-      const uploadStream = bucket.openUploadStream('file');
+      const uploadStream = bucket.openUploadStream(obj.id);
       readStream.pipe(uploadStream);
 
       await new Promise((resolve, reject) => {
@@ -167,16 +172,21 @@ router.post(routes.update, async (ctx) => {
 //   }
 // });
 //
-// /**
-//  * Middleware to return users. A wrapper for getUsers
-//  */
-// router.get(routes.fetchUsers, async (ctx) => {
-//   const { col } = ctx.state;
-//   return {
-//     status: 'Fetched',
-//     data: await getUsers(col),
-//   };
-// });
+/**
+ * Middleware to fetch notes
+ */
+router.get(routes.fetchAll, async (ctx) => {
+  const { col } = ctx.state;
+  const data = await col.find().toArray();
+  return {
+    status: 'Fetched',
+    data: data.map((note) => {
+      const { _id, ...rest } = note;
+      if (!note.content) rest.content = 'media';
+      return rest;
+    }),
+  };
+});
 
 app.use(router.routes())
   .use(router.allowedMethods());
