@@ -124,7 +124,7 @@ router.post(routes.update, async (ctx) => {
       });
       const fileBuffer = Buffer.from(obj.content, 'base64');
       const readStream = Readable.from(fileBuffer);
-      const bucket = new GridFSBucket(dbFiles);
+      const bucket = new GridFSBucket(dbFiles, { bucketName: 'chest_of_notes' });
       const uploadStream = bucket.openUploadStream(obj.id);
       readStream.pipe(uploadStream);
 
