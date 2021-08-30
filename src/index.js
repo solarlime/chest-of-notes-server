@@ -1,10 +1,11 @@
 const dotenv = require('dotenv');
-const { Readable } = require('stream');
 const Koa = require('koa');
 const Router = require('@koa/router');
 const koaBody = require('koa-body');
 const koaCors = require('@koa/cors');
 const { MongoClient, GridFSBucket } = require('mongodb');
+const ffmpeg = require('ffmpeg');
+const fs = require('fs');
 
 /**
  * Make a serverless function with Koa
@@ -70,14 +71,19 @@ app.use(async (ctx, next) => {
       const col = db.collection('notes');
       // Save col in ctx.state for sending it to middlewares
       ctx.state.col = col;
+      if (ctx.request.url.includes(prefix + routes.fetchOne)) {
+        ctx.state.fileId = ctx.request.url.replace(`${prefix + routes.fetchOne}/`, '');
+        ctx.request.url = prefix + routes.fetchOne;
+      }
       const res = await next();
       return res;
     } catch (err) {
       console.log(err.stack);
     } finally {
       let type = null;
-      if (ctx.request.url === prefix + routes.update) {
-        type = JSON.parse(ctx.request.body).type;
+      if ((ctx.request.url === prefix + routes.update)
+          || (ctx.request.url.includes(routes.fetchOne))) {
+        type = 'media';
       }
       if (!type || type === 'text') {
         await client.close();
@@ -88,8 +94,7 @@ app.use(async (ctx, next) => {
 
   // eslint-disable-next-line no-return-assign
   const result = await run().catch(console.dir);
-  console.log(result);
-  ctx.response.body = JSON.stringify(result);
+  if (result) ctx.response.body = JSON.stringify(result);
 });
 
 // /**
@@ -108,43 +113,50 @@ app.use(async (ctx, next) => {
 /**
  * Middleware to add a note
  */
+// eslint-disable-next-line consistent-return
 router.post(routes.update, async (ctx) => {
   console.log('middleware');
   const { col, dbFiles } = ctx.state;
   try {
     const { body } = ctx.request;
-    const obj = JSON.parse(body);
-    if (obj.type === 'text') {
+    const { files } = ctx.request;
+    if (body.type === 'text') {
       await col.insertOne({
-        id: obj.id, name: obj.name, type: obj.type, content: obj.content,
+        id: body.id, name: body.name, type: body.type, content: body.content,
       });
-    } else {
-      await col.insertOne({
-        id: obj.id, name: obj.name, type: obj.type,
-      });
-      const fileBuffer = Buffer.from(obj.content, 'base64');
-      const readStream = Readable.from(fileBuffer);
-      const bucket = new GridFSBucket(dbFiles, { bucketName: 'chest_of_notes' });
-      const uploadStream = bucket.openUploadStream(obj.id);
-      readStream.pipe(uploadStream);
-
-      await new Promise((resolve, reject) => {
-        readStream.on('end', () => {
-          console.log('Reading ended!');
-          resolve();
-        });
-        uploadStream.on('close', () => {
-          console.log('Stream closed!');
-          readStream.destroy();
-          resolve();
-        });
-        readStream.on('error', (e) => {
-          console.log('Error!', e.message);
-          reject();
-        });
-      });
+      return { status: 'Added', data: body.id };
     }
-    return { status: 'Added', data: body };
+    await col.insertOne({
+      id: body.id, name: body.name, type: body.type,
+    });
+    try {
+      // eslint-disable-next-line new-cap
+      const process = new ffmpeg(files.content.path);
+      process.then((blob) => {
+        const path = `/tmp/${body.id}.mp4`;
+        blob.save(path, async (e, file) => {
+          if (!e) {
+            console.log(`Result: ${file}`);
+            const bucketName = prefix.replace('/', '').replaceAll('-', '_');
+            const bucket = new GridFSBucket(dbFiles, { bucketName });
+            const uploadStream = bucket.openUploadStream(body.id);
+            const reader = fs.createReadStream(path);
+            reader.pipe(uploadStream);
+            await new Promise((resolve, reject) => {
+              reader.on('error', (err) => reject(err));
+              uploadStream.on('close', () => {
+                reader.destroy();
+                fs.unlink(path, () => console.log(`Temporary file ${path} was deleted`));
+                resolve();
+              });
+            });
+            return { status: 'Added', data: body.id };
+          } throw Error(e);
+        });
+      }, (error) => console.log(`Error: ${error}`));
+    } catch (e) {
+      throw Error(e.message);
+    }
   } catch (e) {
     return { status: 'Not added', data: e.message };
   }
@@ -186,6 +198,16 @@ router.get(routes.fetchAll, async (ctx) => {
       return rest;
     }),
   };
+});
+
+router.get(routes.fetchOne, async (ctx) => {
+  const { dbFiles, fileId } = ctx.state;
+  const bucketName = prefix.replace('/', '').replaceAll('-', '_');
+  await dbFiles.collection(`${bucketName}.files`).findOne({ filename: fileId });
+  const bucket = new GridFSBucket(dbFiles, { bucketName });
+  const downloadStream = bucket.openDownloadStreamByName(fileId);
+  ctx.response.body = downloadStream;
+  return null;
 });
 
 app.use(router.routes())
