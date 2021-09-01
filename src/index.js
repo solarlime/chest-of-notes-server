@@ -113,7 +113,6 @@ app.use(async (ctx, next) => {
 /**
  * Middleware to add a note
  */
-// eslint-disable-next-line consistent-return
 router.post(routes.update, async (ctx) => {
   console.log('middleware');
   const { col, dbFiles } = ctx.state;
@@ -150,13 +149,13 @@ router.post(routes.update, async (ctx) => {
                 resolve();
               });
             });
-            return { status: 'Added', data: body.id };
-          } throw Error(e);
+          }
         });
       }, (error) => console.log(`Error: ${error}`));
     } catch (e) {
       throw Error(e.message);
     }
+    return { status: 'Added', data: body.id };
   } catch (e) {
     return { status: 'Not added', data: e.message };
   }
