@@ -71,9 +71,17 @@ app.use(async (ctx, next) => {
       const col = db.collection('notes');
       // Save col in ctx.state for sending it to middlewares
       ctx.state.col = col;
+
+      // eslint-disable-next-line no-inner-declarations
+      function redirectTo(target) {
+        ctx.state.fileId = ctx.request.url.replace(`${prefix + target}/`, '');
+        ctx.request.url = prefix + target;
+      }
+
       if (ctx.request.url.includes(prefix + routes.fetchOne)) {
-        ctx.state.fileId = ctx.request.url.replace(`${prefix + routes.fetchOne}/`, '');
-        ctx.request.url = prefix + routes.fetchOne;
+        redirectTo(routes.fetchOne);
+      } else if (ctx.request.url.includes(prefix + routes.delete)) {
+        redirectTo(routes.delete);
       }
       const res = await next();
       return res;
@@ -96,19 +104,6 @@ app.use(async (ctx, next) => {
   const result = await run().catch(console.dir);
   if (result) ctx.response.body = JSON.stringify(result);
 });
-
-// /**
-//  * Service function. Returns an array of users
-//  * @param col
-//  * @returns {Promise<*>}
-//  */
-// async function getUsers(col) {
-//   const data = await col.find().toArray();
-//   return data.map((item) => {
-//     const { name } = item;
-//     return name;
-//   });
-// }
 
 /**
  * Middleware to add a note
@@ -160,53 +155,57 @@ router.post(routes.update, async (ctx) => {
     return { status: 'Not added', data: e.message };
   }
 });
-//
-// /**
-//  * Middleware to delete a user. It's also possible to drop the whole DB.
-//  * Use it only to fix the errors!
-//  */
-// router.post(routes.deleteUsers, async (ctx) => {
-//   const { col } = ctx.state;
-//   try {
-//     const document = ctx.request.body;
-//     if (!document.name) {
-//       if (await col.findOne({})) {
-//         await col.drop();
-//         return { status: 'Removed all', data: '' };
-//       }
-//       return { status: 'Already all removed', data: '' };
-//     }
-//     await col.deleteMany({ name: document.name });
-//     return { status: 'Removed', data: '' };
-//   } catch (e) {
-//     return { status: 'Not removed', data: e.message };
-//   }
-// });
-//
+
+/**
+ * Middleware to delete users
+ */
+
+router.get(routes.delete, async (ctx) => {
+  try {
+    const { col, dbFiles, fileId } = ctx.state;
+    const bucketName = prefix.replace('/', '').replaceAll('-', '_');
+    const bucket = new GridFSBucket(dbFiles, { bucketName });
+    const object = await dbFiles.collection(`${bucketName}.files`).findOne();
+    // eslint-disable-next-line no-underscore-dangle
+    await bucket.delete(object._id);
+    await col.deleteOne({ id: fileId });
+    return { status: 'Deleted', data: fileId };
+  } catch (e) {
+    return { status: 'Not deleted', data: e.message };
+  }
+});
+
 /**
  * Middleware to fetch notes
  */
 router.get(routes.fetchAll, async (ctx) => {
-  const { col } = ctx.state;
-  const data = await col.find().toArray();
-  return {
-    status: 'Fetched',
-    data: data.map((note) => {
-      const { _id, ...rest } = note;
-      if (!note.content) rest.content = 'media';
-      return rest;
-    }),
-  };
+  try {
+    const { col } = ctx.state;
+    const data = await col.find().toArray();
+    return {
+      status: 'Fetched',
+      data: data.map((note) => {
+        const { _id, ...rest } = note;
+        if (!note.content) rest.content = 'media';
+        return rest;
+      }),
+    };
+  } catch (e) {
+    return { status: 'Not fetched' };
+  }
 });
 
 router.get(routes.fetchOne, async (ctx) => {
-  const { dbFiles, fileId } = ctx.state;
-  const bucketName = prefix.replace('/', '').replaceAll('-', '_');
-  await dbFiles.collection(`${bucketName}.files`).findOne({ filename: fileId });
-  const bucket = new GridFSBucket(dbFiles, { bucketName });
-  const downloadStream = bucket.openDownloadStreamByName(fileId);
-  ctx.response.body = downloadStream;
-  return null;
+  try {
+    const { dbFiles, fileId } = ctx.state;
+    const bucketName = prefix.replace('/', '').replaceAll('-', '_');
+    const bucket = new GridFSBucket(dbFiles, { bucketName });
+    const downloadStream = bucket.openDownloadStreamByName(fileId);
+    ctx.response.body = downloadStream;
+    return null;
+  } catch (e) {
+    return { status: 'Not fetched', data: e.message };
+  }
 });
 
 app.use(router.routes())
