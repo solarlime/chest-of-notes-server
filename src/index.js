@@ -159,15 +159,16 @@ router.post(routes.update, async (ctx) => {
 /**
  * Middleware to delete users
  */
-
 router.get(routes.delete, async (ctx) => {
   try {
     const { col, dbFiles, fileId } = ctx.state;
     const bucketName = prefix.replace('/', '').replaceAll('-', '_');
-    const bucket = new GridFSBucket(dbFiles, { bucketName });
     const object = await dbFiles.collection(`${bucketName}.files`).findOne();
-    // eslint-disable-next-line no-underscore-dangle
-    await bucket.delete(object._id);
+    if (object.type !== 'text') {
+      const bucket = new GridFSBucket(dbFiles, { bucketName });
+      // eslint-disable-next-line no-underscore-dangle
+      await bucket.delete(object._id);
+    }
     await col.deleteOne({ id: fileId });
     return { status: 'Deleted', data: fileId };
   } catch (e) {
