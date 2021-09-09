@@ -19,6 +19,7 @@ const router = new Router({ prefix });
 const { MONGO_URL, PORT } = process.env;
 const dbName = 'chest-of-notes';
 const filesDB = 'db-files';
+const bucketName = prefix.replace('/', '').replace(/-/g, '_');
 
 /**
  * Define the routes for our convenience
@@ -131,7 +132,6 @@ router.post(routes.update, async (ctx) => {
         blob.save(path, async (e, file) => {
           if (!e) {
             console.log(`Result: ${file}`);
-            const bucketName = prefix.replace('/', '').replaceAll('-', '_');
             const bucket = new GridFSBucket(dbFiles, { bucketName });
             const uploadStream = bucket.openUploadStream(body.id);
             const reader = fs.createReadStream(path);
@@ -157,17 +157,17 @@ router.post(routes.update, async (ctx) => {
 });
 
 /**
- * Middleware to delete users
+ * Middleware to delete notes
  */
 router.get(routes.delete, async (ctx) => {
   try {
     const { col, dbFiles, fileId } = ctx.state;
-    const bucketName = prefix.replace('/', '').replaceAll('-', '_');
-    const object = await dbFiles.collection(`${bucketName}.files`).findOne();
+    const object = await col.findOne({ id: fileId });
     if (object.type !== 'text') {
       const bucket = new GridFSBucket(dbFiles, { bucketName });
+      const file = await dbFiles.collection(`${bucketName}.files`).findOne({ filename: fileId });
       // eslint-disable-next-line no-underscore-dangle
-      await bucket.delete(object._id);
+      await bucket.delete(file._id);
     }
     await col.deleteOne({ id: fileId });
     return { status: 'Deleted', data: fileId };
@@ -199,7 +199,6 @@ router.get(routes.fetchAll, async (ctx) => {
 router.get(routes.fetchOne, async (ctx) => {
   try {
     const { dbFiles, fileId } = ctx.state;
-    const bucketName = prefix.replace('/', '').replaceAll('-', '_');
     const bucket = new GridFSBucket(dbFiles, { bucketName });
     const downloadStream = bucket.openDownloadStreamByName(fileId);
     ctx.response.body = downloadStream;
