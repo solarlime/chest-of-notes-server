@@ -187,7 +187,7 @@ router.get(routes.fetchAll, async (ctx) => {
       status: 'Fetched',
       data: data.map((note) => {
         const { _id, ...rest } = note;
-        if (!note.content) rest.content = 'media';
+        if (!note.content && note.type !== 'text') rest.content = 'media';
         return rest;
       }),
     };
