@@ -79,6 +79,7 @@ app.use(async (ctx, next) => {
         ctx.request.url = prefix + target;
       }
 
+      // Redirect '.../mongo/fetch/one/xxx' & '.../mongo/fetch/one/xxx' to middlewares
       if (ctx.request.url.includes(prefix + routes.fetchOne)) {
         redirectTo(routes.fetchOne);
       } else if (ctx.request.url.includes(prefix + routes.delete)) {
@@ -89,6 +90,7 @@ app.use(async (ctx, next) => {
     } catch (err) {
       console.log(err.stack);
     } finally {
+      // Streams don't allow to close connection normally. Fix it for JSONs
       let type = null;
       if ((ctx.request.url === prefix + routes.update)
           || (ctx.request.url.includes(routes.fetchOne))) {
@@ -113,8 +115,7 @@ router.post(routes.update, async (ctx) => {
   console.log('middleware');
   const { col, dbFiles } = ctx.state;
   try {
-    const { body } = ctx.request;
-    const { files } = ctx.request;
+    const { body, files } = ctx.request;
     if (body.type === 'text') {
       await col.insertOne({
         id: body.id, name: body.name, type: body.type, content: body.content,
@@ -125,6 +126,9 @@ router.post(routes.update, async (ctx) => {
       id: body.id, name: body.name, type: body.type,
     });
     try {
+      // Different browsers record and play media with various types.
+      // It's necessary to store them in the only one type.
+      // Ffmpeg uses a ffmpeg library in a system to make mp4 files. Then they're put to GridFS
       // eslint-disable-next-line new-cap
       const process = new ffmpeg(files.content.path);
       process.then((blob) => {
