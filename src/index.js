@@ -202,9 +202,73 @@ router.get(routes.fetchAll, async (ctx) => {
 
 router.get(routes.fetchOne, async (ctx) => {
   try {
-    const { dbFiles, fileId } = ctx.state;
+    // Thanks to Ashley Davis for a solution with Safari
+    // https://blog.logrocket.com/streaming-video-in-safari/
+    const options = {};
+
+    let start;
+    let end;
+
+    const { range } = ctx.request.headers;
+
+    // At first, parse the range header
+    if (range) {
+      const bytesPrefix = 'bytes=';
+      if (range.startsWith(bytesPrefix)) {
+        const bytesRange = range.substring(bytesPrefix.length);
+        const parts = bytesRange.split('-');
+        if (parts.length === 2) {
+          const rangeStart = parts[0] && parts[0].trim();
+          if (rangeStart && rangeStart.length > 0) {
+            start = parseInt(rangeStart, 10);
+            options.start = start;
+          }
+          const rangeEnd = parts[1] && parts[1].trim();
+          if (rangeEnd && rangeEnd.length > 0) {
+            end = parseInt(rangeEnd, 10);
+            options.end = end;
+          }
+        }
+      }
+    }
+
+    const { col, dbFiles, fileId } = ctx.state;
+    const object = await col.findOne({ id: fileId });
     const bucket = new GridFSBucket(dbFiles, { bucketName });
     const downloadStream = bucket.openDownloadStreamByName(fileId);
+    ctx.response.type = `${object.type}/mp4`;
+
+    // Determine the file length
+    const contentLength = await bucket.find({ filename: fileId }).toArray()
+      .then((array) => array[0].length);
+
+    // A HEAD request should be worked with
+    if (ctx.request.method === 'HEAD') {
+      ctx.response.status = 200;
+      ctx.response.set('Accept-Ranges', 'Bytes');
+      ctx.response.set('Content-Length', contentLength);
+      return null;
+    }
+    // Determine the content length based on the portion of the file requested
+    let retrievedLength;
+    if (start !== undefined && end !== undefined) {
+      retrievedLength = (end + 1) - start;
+    } else if (start !== undefined) {
+      retrievedLength = contentLength - start;
+    } else if (end !== undefined) {
+      retrievedLength = (end + 1);
+    } else {
+      retrievedLength = contentLength;
+    }
+
+    // If a file is full, send 200. Else - 206
+    ctx.response.status = (start !== undefined || end !== undefined) ? 206 : 200;
+    ctx.response.set('Content-Length', retrievedLength);
+    if (range !== undefined) {
+      ctx.response.set('Content-Range', `bytes ${start || 0}-${end || (contentLength - 1)}/${contentLength}`);
+      ctx.response.set('Accept-Ranges', 'bytes');
+    }
+
     ctx.response.body = downloadStream;
     return null;
   } catch (e) {
