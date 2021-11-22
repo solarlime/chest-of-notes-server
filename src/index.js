@@ -44,6 +44,22 @@ function routesF() {
 }
 const routes = routesF();
 
+async function addToGridFS(body, dbFiles, path, callback = undefined) {
+  const bucket = new GridFSBucket(dbFiles, { bucketName });
+  const uploadStream = bucket.openUploadStream(body.id);
+  const reader = fs.createReadStream(path);
+  reader.pipe(uploadStream);
+  await new Promise((resolve, reject) => {
+    reader.on('error', (err) => reject(err));
+    uploadStream.on('close', () => {
+      reader.destroy();
+      fs.unlink(path, () => console.log(`Raw temporary file ${path} was deleted`));
+      if (callback) callback();
+      resolve();
+    });
+  });
+}
+
 app.use(koaCors({ allowMethods: 'GET,POST' }));
 app.use(koaBody({
   urlencoded: true,
@@ -86,6 +102,7 @@ app.use(async (ctx, next) => {
         redirectTo(routes.delete);
       }
       const res = await next();
+      console.log(res);
       return res;
     } catch (err) {
       console.log(err.stack);
@@ -128,29 +145,23 @@ router.post(routes.update, async (ctx) => {
     try {
       // Different browsers record and play media with various types.
       // It's necessary to store them in the only one type.
-      // Ffmpeg uses a ffmpeg library in a system to make mp4 files. Then they're put to GridFS
-      // eslint-disable-next-line new-cap
-      const process = new ffmpeg(files.content.path);
-      process.then((blob) => {
-        const path = `/tmp/${body.id}.mp4`;
-        blob.save(path, async (e, file) => {
-          if (!e) {
-            console.log(`Result: ${file}`);
-            const bucket = new GridFSBucket(dbFiles, { bucketName });
-            const uploadStream = bucket.openUploadStream(body.id);
-            const reader = fs.createReadStream(path);
-            reader.pipe(uploadStream);
-            await new Promise((resolve, reject) => {
-              reader.on('error', (err) => reject(err));
-              uploadStream.on('close', () => {
-                reader.destroy();
-                fs.unlink(path, () => console.log(`Temporary file ${path} was deleted`));
-                resolve();
-              });
-            });
-          }
-        });
-      }, (error) => console.log(`Error: ${error}`));
+      // Ffmpeg uses a ffmpeg library in a system to make mp4 files. Then they're put to GridFS.
+      // Safari records in mp4 by default, so it isn't necessary to convert a file.
+      if (files.content.type.includes('mp4')) {
+        await addToGridFS(body, dbFiles, files.content.path);
+      } else {
+        // eslint-disable-next-line new-cap
+        const process = new ffmpeg(files.content.path);
+        process.then((blob) => {
+          const path = `/tmp/${body.id}.mp4`;
+          blob.save(path, async (e, file) => {
+            if (!e) {
+              console.log(`Result: ${file}`);
+              await addToGridFS(body, dbFiles, path, () => { fs.unlink(path, () => console.log(`Converted temporary file ${path} was deleted`)); });
+            }
+          });
+        }, (error) => console.log(`Error: ${error}`));
+      }
     } catch (e) {
       throw Error(e.message);
     }
