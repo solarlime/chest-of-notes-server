@@ -60,14 +60,16 @@ async function addToGridFS(body, dbFiles, path, callback = undefined) {
   });
 }
 
+const MAX_BODY = 50 * 1024 * 1024;
 app.use(koaCors({ allowMethods: 'GET,POST' }));
 app.use(koaBody({
   urlencoded: true,
   multipart: true,
   parsedMethods: ['POST', 'GET'],
   json: true,
-  jsonLimit: '50mb',
-  textLimit: '50mb',
+  jsonLimit: MAX_BODY,
+  formLimit: MAX_BODY,
+  textLimit: MAX_BODY,
 }));
 
 /**
