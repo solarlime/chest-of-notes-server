@@ -12,7 +12,6 @@ on:
 
 env:
   DEPLOY_PATH: /var/www
-  BUILD_SCRIPT_OUTPUT: dist
   GITHUB_REPO: chest-of-notes-server
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
@@ -25,71 +24,50 @@ jobs:
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v1
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
         with:
-          node-version: '14'
+          node-version: '16'
 
       - name: Install dependencies
-        run: yarn
+        run: yarn install --immutable
 
-      - name: Linting & Testing
-        run: yarn run lint
-
-      - name: Building
+      - name: Linting & Building
         run: yarn run build
 
       - name: Make directory if there isn't
-        uses: matheusvanzan/sshpass-action@v2
+        uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.DEPLOY_SERVER_HOST }}
-          user: ${{ secrets.DEPLOY_SERVER_USERNAME }}
-          pass: ${{ secrets.DEPLOY_SERVER_PASS }}
+          username: ${{ secrets.DEPLOY_SERVER_USERNAME }}
+          key: ${{ secrets.DEPLOY_SERVER_SSH }}
           port: ${{ secrets.DEPLOY_SERVER_PORT }}
-          run: |
-            cd ${{ env.DEPLOY_PATH }}
-            mkdir -p ${{ env.GITHUB_REPO }}
+          script: cd ${{ env.DEPLOY_PATH }} && mkdir -p ${{ env.GITHUB_REPO }}
 
       - name: Pre-deploy
-        uses: nogsantos/scp-deploy@master
+        uses: appleboy/scp-action@master
         with:
-          src: ./package.json
           host: ${{ secrets.DEPLOY_SERVER_HOST }}
-          remote: ${{ env.DEPLOY_PATH }}/${{ env.GITHUB_REPO }}
+          username: ${{ secrets.DEPLOY_SERVER_USERNAME }}
           port: ${{ secrets.DEPLOY_SERVER_PORT }}
-          user: ${{ secrets.DEPLOY_SERVER_USERNAME }}
-          key: ${{ secrets.DEPLOY_SERVER_KEY }}
+          key: ${{ secrets.DEPLOY_SERVER_SSH }}
+          source: "./package.json, ./yarn.lock, ./.yarn, ./.yarnrc.yml, ./dist"
+          target: ${{ env.DEPLOY_PATH }}/${{ env.GITHUB_REPO }}
 
-      - name: Resolving dependencies
-        uses: matheusvanzan/sshpass-action@v2
+      - name: Resolving dependencies & Restarting
+        uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.DEPLOY_SERVER_HOST }}
-          user: ${{ secrets.DEPLOY_SERVER_USERNAME }}
-          pass: ${{ secrets.DEPLOY_SERVER_PASS }}
+          username: ${{ secrets.DEPLOY_SERVER_USERNAME }}
+          key: ${{ secrets.DEPLOY_SERVER_SSH }}
           port: ${{ secrets.DEPLOY_SERVER_PORT }}
-          run: |
+          script: |
             cd ${{ env.DEPLOY_PATH }}/${{ env.GITHUB_REPO }}
             rm -rf node_modules
-            yarn
-
-      - name: Deploy
-        uses: nogsantos/scp-deploy@master
-        with:
-          src: ${{ env.BUILD_SCRIPT_OUTPUT }}
-          host: ${{ secrets.DEPLOY_SERVER_HOST }}
-          remote: ${{ env.DEPLOY_PATH }}/${{ env.GITHUB_REPO }}
-          port: ${{ secrets.DEPLOY_SERVER_PORT }}
-          user: ${{ secrets.DEPLOY_SERVER_USERNAME }}
-          key: ${{ secrets.DEPLOY_SERVER_KEY }}
-
-      - name: Restarting
-        uses: matheusvanzan/sshpass-action@v2
-        with:
-          host: ${{ secrets.DEPLOY_SERVER_HOST }}
-          user: ${{ secrets.DEPLOY_SERVER_USERNAME }}
-          pass: ${{ secrets.DEPLOY_SERVER_PASS }}
-          port: ${{ secrets.DEPLOY_SERVER_PORT }}
-          run: |
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+            nvm use 18
+            yarn install --immutable
             cd ${{ env.DEPLOY_PATH }}
             pm2 reload ecosystem.config.js --only ${{ env.GITHUB_REPO }}
 
