@@ -1,25 +1,28 @@
 {
   "env": {
-    "browser": true,
-    "es6": true
+    "node": true,
+    "es2021": true
   },
   "globals": {
     "Atomics": "readonly",
     "SharedArrayBuffer": "readonly"
   },
   "extends": [
-    "airbnb-base"
+    "airbnb-base",
+    "airbnb-typescript/base"
   ],
   "parserOptions": {
-    "ecmaVersion": 2020,
-    "sourceType": "module"
+    "ecmaVersion": 2023,
+    "sourceType": "module",
+    "project": "./tsconfig.json"
   },
-  "parser": "@babel/eslint-parser",
   "rules": {
     "no-restricted-syntax": [
       "error",
       "LabeledStatement",
       "WithStatement"
-    ]
+    ],
+    "import/no-extraneous-dependencies": "warn",
+    "@typescript-eslint/naming-convention": "warn"
   }
 }
