@@ -4,7 +4,7 @@
 A backend side of a [chest-of-notes](https://github.com/solarlime/chest-of-notes) project.
 
 ### Based on:
-- Koa 2
+- Express 4
 - MongoDB (+ GridFS)
-- FFmpeg (for creating mp4 files)
+- FFmpeg.wasm (for creating h.264/aac mp4 files)
 
