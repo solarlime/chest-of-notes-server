@@ -38,7 +38,7 @@ const routes = {
  */
 const app = express();
 const memory = multer.memoryStorage();
-const multiparser = multer({ storage: memory });
+const multiparser = multer({ storage: memory, limits: { fieldSize: 40 * 1024 * 1024 } });
 
 app.use(cors({
   origin: ['http://localhost:9000', 'https://chest-of-notes-solarlime.vercel.app', 'https://chest-of-notes.solarlime.dev'],
