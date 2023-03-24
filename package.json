@@ -3,7 +3,7 @@
   "version": "2.0.0",
   "main": "src/index.ts",
   "scripts": {
-    "start": "yarn run build && node dist/server.js",
+    "start": "yarn run build && node dist/index.js",
     "build": "yarn run eslint . && tsc",
     "watch": "nodemon src/index.ts"
   },
