@@ -1,7 +1,7 @@
 import { Collection, GridFSBucket } from 'mongodb';
 import fs from 'fs';
 import { Response } from 'express';
-import ExtendedRequest from './types.js';
+import { ExtendedRequest } from './types.js';
 
 /**
  * A middleware for fetching all notes

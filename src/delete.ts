@@ -1,6 +1,6 @@
 import { GridFSBucket } from 'mongodb';
 import { Response } from 'express';
-import ExtendedRequest from './types.js';
+import { ExtendedRequest } from './types.js';
 
 /**
  * A middleware for deleting notes
