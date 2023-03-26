@@ -2,7 +2,8 @@ import { Readable } from 'stream';
 import { Response } from 'express';
 import { Db, GridFSBucket } from 'mongodb';
 import { createFFmpeg, fetchFile, FFmpeg } from '@ffmpeg/ffmpeg';
-import ExtendedRequest from './types.js';
+import EventEmitter from 'events';
+import { ExtendedRequest, NotificationEvent } from './types.js';
 
 /**
  * A function for adding a file to GridFS
@@ -36,7 +37,7 @@ async function addToGridFS(
 /**
  * A middleware for adding notes
  */
-async function addOne(req: ExtendedRequest, res: Response) {
+async function addOne(req: ExtendedRequest, res: Response, emitter: EventEmitter) {
   console.log('Trying to add a note...');
   const col = req.col!;
   const bucketName = req.bucketName!;
@@ -64,16 +65,28 @@ async function addOne(req: ExtendedRequest, res: Response) {
           logger: ({ message }) => console.log(message),
           progress: (p) => console.log(p),
         });
-        await ffmpeg.load();
-        ffmpeg.FS('writeFile', `${body.id}`, await fetchFile(file.buffer));
-        await ffmpeg.run('-i', `${body.id}`, '-c:v', 'libx264', `${body.id}.mp4`);
-        await addToGridFS(body.id, dbFiles, bucketName, ffmpeg);
         await col.insertOne({
           id: body.id, name: body.name, type: body.type,
         });
         res.status(200).json({ status: 'Added', data: body.id });
+        // Converting is done after res was sent.
+        // A user is notified if it was successful or not
+        await ffmpeg.load();
+        ffmpeg.FS('writeFile', `${body.id}`, await fetchFile(file.buffer));
+        await ffmpeg.run('-i', `${body.id}`, '-c:v', 'libx264', `${body.id}.mp4`);
+        await addToGridFS(body.id, dbFiles, bucketName, ffmpeg);
+        const event: NotificationEvent = { id: body.id, name: 'uploadsuccess', note: body.name };
+        emitter.emit('uploadsuccess', event);
       } catch (e) {
-        res.status(500).json({ status: 'Error: not added', data: (e as Error).message });
+        if (res.writableEnded) {
+          // If a response was sent, an error occurred with a file.
+          // So, we need to clear its note's data
+          await col.deleteOne({ id: body.id });
+          const event: NotificationEvent = { id: body.id, name: 'uploaderror', note: body.name };
+          emitter.emit('uploaderror', event);
+        } else {
+          res.status(500).json({ status: 'Error: not added', data: (e as Error).message });
+        }
       }
     }
   } catch (e) {
