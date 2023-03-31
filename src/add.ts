@@ -66,15 +66,16 @@ async function addOne(req: ExtendedRequest, res: Response, emitter: EventEmitter
           progress: (p) => console.log(p),
         });
         await col.insertOne({
-          id: body.id, name: body.name, type: body.type,
+          id: body.id, name: body.name, type: body.type, uploadComplete: false,
         });
-        res.status(200).json({ status: 'Added', data: body.id });
+        res.status(200).json({ status: 'Added', data: body.id, uploadComplete: false });
         // Converting is done after res was sent.
         // A user is notified if it was successful or not
         await ffmpeg.load();
         ffmpeg.FS('writeFile', `${body.id}`, await fetchFile(file.buffer));
         await ffmpeg.run('-i', `${body.id}`, '-c:v', 'libx264', `${body.id}.mp4`);
         await addToGridFS(body.id, dbFiles, bucketName, ffmpeg);
+        await col.updateOne({ id: body.id }, { $set: { id: body.id, uploadComplete: true } });
         const event: NotificationEvent = { id: body.id, name: 'uploadsuccess', note: body.name };
         emitter.emit('uploadsuccess', event);
       } catch (e) {
