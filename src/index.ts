@@ -48,6 +48,7 @@ app.disable('x-powered-by');
 app.use(cors({
   origin: ['http://localhost:9000', 'https://chest-of-notes-solarlime.vercel.app', 'https://chest-of-notes.solarlime.dev'],
   methods: ['GET', 'POST'],
+  credentials: true,
 }));
 
 /**
@@ -77,14 +78,26 @@ const connectToMongo = async (
  * A middleware for server-sent notifications
  */
 const notifyAboutUploads = (req: ExtendedRequest, res: express.Response) => {
-  console.log('Trying to subscribe to notifications');
   res.statusCode = 200;
   res.setHeader('content-type', 'text/event-stream');
   res.setHeader('cache-control', 'no-cache');
   res.setHeader('connection', 'keep-alive');
+  res.write('\n\n');
+  if (emitter.eventNames().length > 0) {
+    res.write('id: 0\nevent: deny\ndata:\n\n');
+  } else {
+    console.log('Trying to subscribe to notifications');
 
-  emitter.on('uploadsuccess', (event: NotificationEvent) => { res.write(`id: ${event.id}\nevent: ${event.name}\ndata: ${event.note}\n\n`); });
-  emitter.on('uploaderror', (event: NotificationEvent) => { res.write(`id: ${event.id}\nevent: ${event.name}\ndata: ${event.note}\n\n`); });
+    const successCallback = (event: NotificationEvent) => { res.write(`id: ${event.id}\nevent: ${event.name}\ndata: ${event.note}\n\n`); };
+    const errorCallback = (event: NotificationEvent) => { res.write(`id: ${event.id}\nevent: ${event.name}\ndata: ${event.note}\n\n`); };
+    emitter.on('uploadsuccess', successCallback);
+    emitter.on('uploaderror', errorCallback);
+    req.on('close', () => {
+      emitter.removeListener('uploadsuccess', successCallback);
+      emitter.removeListener('uploaderror', errorCallback);
+      console.log('Removed all upload listeners');
+    });
+  }
 };
 
 app.get(`${routes.fetch}/all/`, connectToMongo, (req, res) => fetchAll(req, res));
