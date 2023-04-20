@@ -38,22 +38,21 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@ffmpeg/core@npm:^0.11.0":
-  version: 0.11.0
-  resolution: "@ffmpeg/core@npm:0.11.0"
-  checksum: 79c9431ad15d847dc1e8d70ddffec00a16fdb0d2027523ceef212ffcb115b3de766d2209dde74aaa381f1e2a3b60acd0062ac966957321acc195460b8342d7dd
+"@ffmpeg.wasm/core-mt@npm:^0.12.0":
+  version: 0.12.0
+  resolution: "@ffmpeg.wasm/core-mt@npm:0.12.0"
+  checksum: 45b4ced7a1b3ae14808e3242d5c9e48a4039f25dee75243bc9ee12135f49fa971dd1752c847e3e050151a57000fc388fc28fad4132c8a6d09c07d26f4a8f6f4c
   languageName: node
   linkType: hard
 
-"@ffmpeg/ffmpeg@npm:^0.11.6":
-  version: 0.11.6
-  resolution: "@ffmpeg/ffmpeg@npm:0.11.6"
+"@ffmpeg.wasm/main@npm:^0.12.0":
+  version: 0.12.0
+  resolution: "@ffmpeg.wasm/main@npm:0.12.0"
   dependencies:
     is-url: ^1.2.4
-    node-fetch: ^2.6.1
-    regenerator-runtime: ^0.13.7
-    resolve-url: ^0.2.1
-  checksum: 496950c148dd16154f127106ddb533c4c84252abba875bc00c8cb1dabfaa21ba030b4fda954b7ec583b1af17fc362216d7a0c8a8ab5d346f871425cfaf392dfd
+    node-fetch: ^2.6.9
+    regenerator-runtime: ^0.13.11
+  checksum: 773f89e1c02e6ba20c2a950001b6137eec80c771d21baa3359eb5d01e92d7f9f9e23ecde4db4d6e2db57a7176c72c848ed331c3f407bacced96c185505f000a1
   languageName: node
   linkType: hard
 
@@ -863,8 +862,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "chest-of-notes-server@workspace:."
   dependencies:
-    "@ffmpeg/core": ^0.11.0
-    "@ffmpeg/ffmpeg": ^0.11.6
+    "@ffmpeg.wasm/core-mt": ^0.12.0
+    "@ffmpeg.wasm/main": ^0.12.0
     "@types/cors": ^2
     "@types/eslint": ^8
     "@types/express": ^4
@@ -2737,7 +2736,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"node-fetch@npm:^2.6.1":
+"node-fetch@npm:^2.6.9":
   version: 2.6.9
   resolution: "node-fetch@npm:2.6.9"
   dependencies:
@@ -3143,7 +3142,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"regenerator-runtime@npm:^0.13.7":
+"regenerator-runtime@npm:^0.13.11":
   version: 0.13.11
   resolution: "regenerator-runtime@npm:0.13.11"
   checksum: 27481628d22a1c4e3ff551096a683b424242a216fee44685467307f14d58020af1e19660bf2e26064de946bad7eff28950eae9f8209d55723e2d9351e632bbb4
@@ -3172,13 +3171,6 @@ __metadata:
   version: 4.0.0
   resolution: "resolve-from@npm:4.0.0"
   checksum: f4ba0b8494846a5066328ad33ef8ac173801a51739eb4d63408c847da9a2e1c1de1e6cbbf72699211f3d13f8fc1325648b169bd15eb7da35688e30a5fb0e4a7f
-  languageName: node
-  linkType: hard
-
-"resolve-url@npm:^0.2.1":
-  version: 0.2.1
-  resolution: "resolve-url@npm:0.2.1"
-  checksum: 7b7035b9ed6e7bc7d289e90aef1eab5a43834539695dac6416ca6e91f1a94132ae4796bbd173cdacfdc2ade90b5f38a3fb6186bebc1b221cd157777a23b9ad14
   languageName: node
   linkType: hard
 

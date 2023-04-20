@@ -7,8 +7,6 @@ on:
   # Triggers the workflow on push or pull request events but only for the master branch
   push:
     branches: [ master ]
-  pull_request:
-    branches: [ master ]
 
 env:
   DEPLOY_PATH: /var/www
@@ -27,7 +25,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/setup-node@v3
         with:
-          node-version: '16'
+          node-version: '18'
 
       - name: Install dependencies
         run: yarn install --immutable
@@ -66,7 +64,6 @@ jobs:
             rm -rf node_modules
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-            nvm use 18
             yarn install --immutable
             cd ${{ env.DEPLOY_PATH }}
             pm2 reload ecosystem.config.js --only ${{ env.GITHUB_REPO }}

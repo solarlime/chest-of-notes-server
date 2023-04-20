@@ -1,7 +1,7 @@
 import { Readable } from 'stream';
 import { Response } from 'express';
 import { Db, GridFSBucket } from 'mongodb';
-import { createFFmpeg, fetchFile, FFmpeg } from '@ffmpeg/ffmpeg';
+import { createFFmpeg, fetchFile, FFmpeg } from '@ffmpeg.wasm/main';
 import EventEmitter from 'events';
 import { ExtendedRequest, NotificationEvent } from './types.js';
 
