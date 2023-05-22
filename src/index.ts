@@ -1,4 +1,5 @@
 import dotenv from 'dotenv';
+import fetch, { Headers } from 'node-fetch';
 import express from 'express';
 import multer from 'multer';
 import cors from 'cors';
@@ -107,4 +108,37 @@ app.get(`${routes.delete}/:id/`, connectToMongo, (req, res) => deleteOne(req, re
 app.get(`${routes.notifications}/`, (req, res) => notifyAboutUploads(req, res));
 app.all('*', (req: express.Request, res: express.Response) => { res.status(404).send('Not found'); });
 
-app.listen(PORT, () => { console.log('Server is listening on %s', PORT); });
+/**
+ * A function which cleans incomplete notes (after a server restart) if there are
+ * @param task - a custom header telling the server about the issuer
+ */
+const cleanIncompleteUploads = async (task: string) => {
+  const headers = new Headers({ task });
+  const res = await fetch(`http://localhost:${PORT}${routes.fetch}/all/`).then((result) => result.json()) as
+    { status: string, data: string | Array<{ [key: string]: string | boolean }> };
+  if (typeof res.data === 'string') {
+    console.log(`${res.status}. ${res.data}`);
+  } else {
+    const incompleteNotesIds = res.data.filter((item) => item.uploadComplete === false)
+      .map((item) => item.id);
+    if (incompleteNotesIds.length > 0) {
+      try {
+        const cleaned = await Promise.all(incompleteNotesIds.map((id) => fetch(`http://localhost:${PORT}${routes.delete}/${id}/`, { headers })
+          .then((r) => r.json()).then((r) => {
+            const result = r as { status: string, data: string };
+            if (result.status === 'Error: not deleted') throw Error(result.data);
+            return result;
+          })));
+        console.log(`Got rid of ${cleaned.length} incomplete notes!`);
+      } catch (e) {
+        console.log((e as Error));
+      }
+    }
+  }
+};
+
+app.listen(PORT, async () => {
+  const { name } = cleanIncompleteUploads;
+  await cleanIncompleteUploads(name);
+  console.log('Server is listening on %s', PORT);
+});
