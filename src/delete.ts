@@ -20,7 +20,7 @@ async function deleteOne(req: ExtendedRequest, res: Response) {
         if (file) {
           // eslint-disable-next-line no-underscore-dangle
           await bucket.delete(file._id);
-        } else {
+        } else if (!req.headers.task) {
           throw Error(`A note ${fileId} is found, but there is no expected file`);
         }
       }
