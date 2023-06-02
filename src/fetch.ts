@@ -1,5 +1,5 @@
 import { Collection, GridFSBucket } from 'mongodb';
-import fs from 'fs';
+import fs from 'node:fs';
 import { Response } from 'express';
 import { ExtendedRequest } from './types.js';
 

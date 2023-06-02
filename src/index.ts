@@ -4,7 +4,7 @@ import express from 'express';
 import multer from 'multer';
 import cors from 'cors';
 import { MongoClient } from 'mongodb';
-import EventEmitter from 'events';
+import EventEmitter from 'node:events';
 import { fetchAll, fetchOne } from './fetch.js';
 import { ExtendedRequest, NotificationEvent } from './types.js';
 import deleteOne from './delete.js';
