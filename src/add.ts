@@ -5,6 +5,7 @@ import path from 'node:path';
 import { ChildProcess, fork } from 'node:child_process';
 import { createReadStream } from 'node:fs';
 import { unlink } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
 import { ExtendedRequest, LaunchMessage, NotificationEvent } from './types.js';
 
 /**
@@ -64,11 +65,13 @@ async function addOne(req: ExtendedRequest, res: Response, emitter: EventEmitter
         let ffmpegProcess: ChildProcess;
         switch (extension) {
           case '.ts': {
-            ffmpegProcess = fork('./src/ffmpeg.ts');
+            const filePath = fileURLToPath(new URL('./ffmpeg.ts', import.meta.url));
+            ffmpegProcess = fork(filePath);
             break;
           }
           default: {
-            ffmpegProcess = fork('./dist/ffmpeg.js');
+            const filePath = fileURLToPath(new URL('./ffmpeg.js', import.meta.url));
+            ffmpegProcess = fork(filePath);
             break;
           }
         }
