@@ -1,34 +1,32 @@
-import { Readable } from 'stream';
 import { Response } from 'express';
 import { Db, GridFSBucket } from 'mongodb';
-import { createFFmpeg, fetchFile, FFmpeg } from '@ffmpeg.wasm/main';
 import EventEmitter from 'events';
-import { ExtendedRequest, NotificationEvent } from './types.js';
+import path from 'node:path';
+import { ChildProcess, fork } from 'node:child_process';
+import { createReadStream } from 'node:fs';
+import { unlink } from 'node:fs/promises';
+import { ExtendedRequest, LaunchMessage, NotificationEvent } from './types.js';
 
 /**
  * A function for adding a file to GridFS
  * @param id - a generated filename
  * @param dbFiles - a files' database name
  * @param bucketName - a GridFSBucket name
- * @param ffmpeg - a ffmpeg-wasm object
  */
 async function addToGridFS(
   id: string,
   dbFiles: Db,
   bucketName: string,
-  ffmpeg: FFmpeg,
 ) {
   const bucket = new GridFSBucket(dbFiles, { bucketName });
   const uploadStream = bucket.openUploadStream(id);
-  const readable = ffmpeg.FS('readFile', `${id}.mp4`);
-  const reader = Readable.from(Buffer.from(readable));
-  reader.pipe(uploadStream);
+  const readable = createReadStream(`${id}.mp4`);
+  readable.pipe(uploadStream);
   await new Promise<void>((resolve, reject) => {
-    reader.on('error', (err) => reject(err));
+    readable.on('error', (err) => reject(err));
     uploadStream.on('close', () => {
-      reader.destroy();
-      ffmpeg.FS('unlink', `${id}.mp4`);
-      ffmpeg.exit();
+      readable.destroy();
+      console.log(`Added ${id}.mp4 to GridFS!`);
       resolve();
     });
   });
@@ -57,27 +55,52 @@ async function addOne(req: ExtendedRequest, res: Response, emitter: EventEmitter
     } else {
       // An audio/video note is received
       try {
-        // Different browsers record and play media with various types.
-        // It's necessary to store them in the only one type.
-        // Ffmpeg converts recorded files to h.264/aac mp4 files. Then they're put to GridFS.
-        const ffmpeg = createFFmpeg({
-          log: true,
-          logger: ({ message }) => console.log(message),
-          progress: (p) => console.log(p),
-        });
         await col.insertOne({
           id: body.id, name: body.name, type: body.type, uploadComplete: false,
         });
         res.status(200).json({ status: 'Added', data: body.id, uploadComplete: false });
-        // Converting is done after res was sent.
-        // A user is notified if it was successful or not
-        await ffmpeg.load();
-        ffmpeg.FS('writeFile', `${body.id}`, await fetchFile(file.buffer));
-        await ffmpeg.run('-i', `${body.id}`, '-c:v', 'libx264', `${body.id}.mp4`);
-        await addToGridFS(body.id, dbFiles, bucketName, ffmpeg);
-        await col.updateOne({ id: body.id }, { $set: { id: body.id, uploadComplete: true } });
-        const event: NotificationEvent = { id: body.id, name: 'uploadsuccess', note: body.name };
-        emitter.emit('uploadsuccess', event);
+
+        const extension = path.extname(import.meta.url);
+        let ffmpegProcess: ChildProcess;
+        switch (extension) {
+          case '.ts': {
+            ffmpegProcess = fork('./src/ffmpeg.ts');
+            break;
+          }
+          default: {
+            ffmpegProcess = fork('./dist/ffmpeg.js');
+            break;
+          }
+        }
+
+        ffmpegProcess.on('message', async (message: LaunchMessage) => {
+          if (message.name === 'encoded') {
+            console.log(`Adding ${message.id}.mp4 to GridFS...`);
+            await addToGridFS(message.id, dbFiles, bucketName);
+            await col.updateOne(
+              { id: message.id },
+              { $set: { id: message.id, uploadComplete: true } },
+            );
+            const event: NotificationEvent = { id: message.id, name: 'uploadsuccess', note: body.name };
+            emitter.emit('uploadsuccess', event);
+            await unlink(`${message.id}.mp4`);
+            console.log(`Removed temporary file ${message.id}.mp4`);
+          } else {
+            const error = 'Another message from a subprocess was received!';
+            console.log(error);
+            throw Error(error);
+          }
+        });
+
+        ffmpegProcess.on('error', () => {
+          res.status(500).json({ status: 'Error: not added', data: 'An encoding process threw an error!' });
+          console.log('ffmpegProcess error occurred!');
+        });
+
+        const message: LaunchMessage = {
+          name: 'launch', id: body.id, buffer: file.buffer,
+        };
+        ffmpegProcess.send(JSON.stringify(message));
       } catch (e) {
         if (res.writableEnded) {
           // If a response was sent, an error occurred with a file.
