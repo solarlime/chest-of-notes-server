@@ -1,3 +1,4 @@
+import { WebSocketServer } from 'ws';
 import dotenv from 'dotenv';
 import fetch, { Headers } from 'node-fetch';
 import express from 'express';
@@ -23,7 +24,6 @@ type Basis = { [key: string]: string };
 
 const basis: Basis = {
   prefix: `/${dbName}`,
-  notifications: '/notifications',
   mongo: '/mongo',
   fetch: '/fetch',
   add: '/add',
@@ -31,7 +31,6 @@ const basis: Basis = {
 };
 
 const routes = {
-  notifications: basis.prefix + basis.notifications,
   fetch: basis.prefix + basis.mongo + basis.fetch,
   add: basis.prefix + basis.mongo + basis.add,
   delete: basis.prefix + basis.mongo + basis.delete,
@@ -44,6 +43,24 @@ const app = express();
 const memory = multer.memoryStorage();
 const multiparser = multer({ storage: memory, limits: { fieldSize: 40 * 1024 * 1024 } });
 const emitter = new EventEmitter();
+
+/**
+ * Init a websocket server for notifications
+ */
+const wss = new WebSocketServer({ noServer: true });
+
+wss.on('connection', (socket) => {
+  console.log('Somebody connected! Online:', wss.clients.size);
+  socket.send(JSON.stringify({ users: wss.clients.size }));
+
+  const callback = (event: NotificationEvent) => { socket.send(JSON.stringify({ event })); };
+  emitter.on('uploadsuccess', callback);
+  emitter.on('uploaderror', callback);
+
+  socket.on('close', () => {
+    console.log('Somebody disconnected! Online:', wss.clients.size);
+  });
+});
 
 app.disable('x-powered-by');
 app.use(cors({
@@ -75,37 +92,10 @@ const connectToMongo = async (
   }
 };
 
-/**
- * A middleware for server-sent notifications
- */
-const notifyAboutUploads = (req: ExtendedRequest, res: express.Response) => {
-  res.statusCode = 200;
-  res.setHeader('content-type', 'text/event-stream');
-  res.setHeader('cache-control', 'no-cache');
-  res.setHeader('connection', 'keep-alive');
-  res.write('\n\n');
-  if (emitter.eventNames().length > 0) {
-    res.write('id: 0\nevent: deny\ndata:\n\n');
-  } else {
-    console.log('Trying to subscribe to notifications');
-
-    const successCallback = (event: NotificationEvent) => { res.write(`id: ${event.id}\nevent: ${event.name}\ndata: ${event.note}\n\n`); };
-    const errorCallback = (event: NotificationEvent) => { res.write(`id: ${event.id}\nevent: ${event.name}\ndata: ${event.note}\n\n`); };
-    emitter.on('uploadsuccess', successCallback);
-    emitter.on('uploaderror', errorCallback);
-    req.on('close', () => {
-      emitter.removeListener('uploadsuccess', successCallback);
-      emitter.removeListener('uploaderror', errorCallback);
-      console.log('Removed all upload listeners');
-    });
-  }
-};
-
 app.get(`${routes.fetch}/all/`, connectToMongo, (req, res) => fetchAll(req, res));
 app.get(`${routes.fetch}/:id/`, connectToMongo, (req, res) => fetchOne(req, res));
 app.post(`${routes.add}/`, multiparser.single('content'), connectToMongo, (req, res) => addOne(req, res, emitter));
 app.get(`${routes.delete}/:id/`, connectToMongo, (req, res) => deleteOne(req, res));
-app.get(`${routes.notifications}/`, (req, res) => notifyAboutUploads(req, res));
 app.all('*', (req: express.Request, res: express.Response) => { res.status(404).send('Not found'); });
 
 /**
@@ -137,8 +127,14 @@ const cleanIncompleteUploads = async (task: string) => {
   }
 };
 
-app.listen(PORT, async () => {
+const server = app.listen(PORT, async () => {
   const { name } = cleanIncompleteUploads;
   await cleanIncompleteUploads(name);
   console.log('Server is listening on %s', PORT);
+});
+
+server.on('upgrade', (request, websocket, head) => {
+  wss.handleUpgrade(request, websocket, head, (socket) => {
+    wss.emit('connection', socket, request);
+  });
 });
