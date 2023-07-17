@@ -64,7 +64,7 @@ wss.on('connection', (socket) => {
 
 app.disable('x-powered-by');
 app.use(cors({
-  origin: ['http://localhost:9000', 'https://chest-of-notes-solarlime.vercel.app', 'https://chest-of-notes.solarlime.dev'],
+  origin: ['http://localhost:9000', 'https://chest-of-notes-solarlime.vercel.app', 'https://chest-of-notes-legacy.solarlime.dev', 'https://chest-of-notes.solarlime.dev'],
   methods: ['GET', 'POST'],
   credentials: true,
 }));
