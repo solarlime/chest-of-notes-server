@@ -53,12 +53,25 @@ wss.on('connection', (socket) => {
   console.log('Somebody connected! Online:', wss.clients.size);
   socket.send(JSON.stringify({ users: wss.clients.size }));
 
+  let timeout: NodeJS.Timeout;
+
+  // Sometimes there can be a trouble with client's connection. Server should ping him
+  const pingInterval = setInterval(() => {
+    timeout = setTimeout(() => { socket.terminate(); }, 11000);
+    socket.ping();
+  }, 10000);
+
+  socket.on('pong', () => {
+    clearTimeout(timeout);
+  });
+
   const callback = (event: NotificationEvent) => { socket.send(JSON.stringify({ event })); };
   emitter.on('uploadsuccess', callback);
   emitter.on('uploaderror', callback);
 
   socket.on('close', () => {
     console.log('Somebody disconnected! Online:', wss.clients.size);
+    clearInterval(pingInterval);
   });
 });
 
