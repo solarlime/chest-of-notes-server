@@ -72,6 +72,7 @@ wss.on('connection', (socket) => {
   socket.on('close', () => {
     console.log('Somebody disconnected! Online:', wss.clients.size);
     clearInterval(pingInterval);
+    emitter.removeAllListeners();
   });
 });
 
