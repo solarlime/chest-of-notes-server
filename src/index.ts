@@ -1,3 +1,4 @@
+import EventEmitter from 'node:events';
 import { WebSocketServer } from 'ws';
 import dotenv from 'dotenv';
 import fetch, { Headers } from 'node-fetch';
@@ -5,7 +6,6 @@ import express from 'express';
 import multer from 'multer';
 import cors from 'cors';
 import { MongoClient } from 'mongodb';
-import EventEmitter from 'node:events';
 import { fetchAll, fetchOne } from './fetch.js';
 import { ExtendedRequest, NotificationEvent } from './types.js';
 import deleteOne from './delete.js';

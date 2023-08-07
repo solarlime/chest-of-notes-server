@@ -1,6 +1,6 @@
-import { createFFmpeg, fetchFile } from '@ffmpeg.wasm/main';
 import { Readable } from 'node:stream';
 import { createWriteStream } from 'node:fs';
+import { createFFmpeg, fetchFile } from '@ffmpeg.wasm/main';
 import { LaunchMessage, ReceivedBuffer } from './types.js';
 
 console.log('Launched ffmpeg process!');
