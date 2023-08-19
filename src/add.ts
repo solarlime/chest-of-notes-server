@@ -1,37 +1,89 @@
-import EventEmitter from 'events';
-import path from 'node:path';
-import { ChildProcess, fork } from 'node:child_process';
-import { createReadStream } from 'node:fs';
-import { unlink } from 'node:fs/promises';
-import { fileURLToPath } from 'node:url';
+import EventEmitter from 'node:events';
+import { open, unlink, createReadStream } from 'node:fs';
+import * as child_process from 'node:child_process';
 import { Db, GridFSBucket } from 'mongodb';
 import { Response } from 'express';
-import { ExtendedRequest, LaunchMessage, NotificationEvent } from './types.js';
+import { ExtendedRequest, NotificationEvent } from './types.js';
 
 /**
  * A function for adding a file to GridFS
  * @param id - a generated filename
  * @param dbFiles - a files' database name
  * @param bucketName - a GridFSBucket name
+ * @param convertedFile - a name of the converted file
  */
-async function addToGridFS(
+const addToGridFS = (
   id: string,
   dbFiles: Db,
   bucketName: string,
-) {
-  const bucket = new GridFSBucket(dbFiles, { bucketName });
-  const uploadStream = bucket.openUploadStream(id);
-  const readable = createReadStream(`${id}.mp4`);
-  readable.pipe(uploadStream);
-  await new Promise<void>((resolve, reject) => {
-    readable.on('error', (err) => reject(err));
-    uploadStream.on('close', () => {
-      readable.destroy();
-      console.log(`Added ${id}.mp4 to GridFS!`);
+  convertedFile: string,
+) => new Promise<void>((resolve, reject) => {
+  open(convertedFile, 'r', (err) => {
+    if (err) {
+      reject(Error('Seems to be an FFmpeg error: file is corrupted'));
+    } else {
+      const deleteFile = (callback: Function, error?: Error) => unlink(convertedFile, (e) => {
+        if (e) {
+          console.log(`File ${convertedFile} was not deleted`);
+        } else {
+          console.log(`Completed deleting ${convertedFile}`);
+        }
+        if (error) {
+          callback(error);
+        } else {
+          callback();
+        }
+      });
+
+      const bucket = new GridFSBucket(dbFiles, { bucketName });
+      const uploadStream = bucket.openUploadStream(id);
+      uploadStream.on('error', (error) => deleteFile(reject, error));
+      uploadStream.on('close', () => {
+        console.log(`Added ${id} to GridFS!`);
+        deleteFile(resolve);
+      });
+      const readableStream = createReadStream(convertedFile);
+      readableStream.pipe(uploadStream, { end: true });
+    }
+  });
+});
+
+/**
+ * A function converting media files via ffmpeg
+ * @param file - a media file
+ * @param convertedFile - a name of the converted file
+ */
+const convertFile = (file: Express.Multer.File, convertedFile: string) => new Promise<void>(
+  (resolve, reject) => {
+    const ffmpeg = child_process.spawn(
+      'ffmpeg',
+      [
+        '-y', // Overwrite output
+        '-i', '-', // Set input to stdin
+        '-c:v', 'libx264', // Set video codec to h.264
+        '-f', 'mp4', // Set output format to mp4
+        convertedFile,
+      ],
+    );
+
+    ffmpeg.on('error', (error) => reject(error));
+
+    ffmpeg.stderr.on('data', (chunk) => {
+      const textChunk = chunk.toString('utf8');
+      console.error(textChunk);
+    });
+
+    ffmpeg.stdout.on('end', () => {
+      console.log('FFmpeg converting ended!');
+      // Stdin still exists!
+      ffmpeg.stdin.destroy();
       resolve();
     });
-  });
-}
+
+    ffmpeg.stdin.write(file.buffer);
+    ffmpeg.stdin.end();
+  },
+);
 
 /**
  * A middleware for adding notes
@@ -60,50 +112,18 @@ async function addOne(req: ExtendedRequest, res: Response, emitter: EventEmitter
           id: body.id, name: body.name, type: body.type, uploadComplete: false,
         });
         res.status(200).json({ status: 'Added', data: body.id, uploadComplete: false });
-
-        const extension = path.extname(import.meta.url);
-        let ffmpegProcess: ChildProcess;
-        switch (extension) {
-          case '.ts': {
-            const filePath = fileURLToPath(new URL('./ffmpeg.ts', import.meta.url));
-            ffmpegProcess = fork(filePath);
-            break;
-          }
-          default: {
-            const filePath = fileURLToPath(new URL('./ffmpeg.js', import.meta.url));
-            ffmpegProcess = fork(filePath);
-            break;
-          }
-        }
-
-        ffmpegProcess.on('message', async (message: LaunchMessage) => {
-          if (message.name === 'encoded') {
-            console.log(`Adding ${message.id}.mp4 to GridFS...`);
-            await addToGridFS(message.id, dbFiles, bucketName);
-            await col.updateOne(
-              { id: message.id },
-              { $set: { id: message.id, uploadComplete: true } },
-            );
-            const event: NotificationEvent = { id: message.id, name: 'uploadsuccess', note: body.name };
-            emitter.emit('uploadsuccess', event);
-            await unlink(`${message.id}.mp4`);
-            console.log(`Removed temporary file ${message.id}.mp4`);
-          } else {
-            const error = 'Another message from a subprocess was received!';
-            console.log(error);
-            throw Error(error);
-          }
-        });
-
-        ffmpegProcess.on('error', () => {
-          res.status(500).json({ status: 'Error: not added', data: 'An encoding process threw an error!' });
-          console.log('ffmpegProcess error occurred!');
-        });
-
-        const message: LaunchMessage = {
-          name: 'launch', id: body.id, buffer: file.buffer,
-        };
-        ffmpegProcess.send(JSON.stringify(message));
+        // Different browsers record and play media with various types.
+        // It's necessary to store them in the only one type.
+        // Ffmpeg converts recorded files to h.264/aac mp4 files. Then they're put to GridFS.
+        // Converting is done after res was sent.
+        // A user is notified if it was successful or not
+        const convertedFile = `${body.id}-converted.mp4`;
+        await convertFile(file, convertedFile);
+        delete req.file;
+        await addToGridFS(body.id, dbFiles, bucketName, convertedFile);
+        await col.updateOne({ id: body.id }, { $set: { id: body.id, uploadComplete: true } });
+        const event: NotificationEvent = { id: body.id, name: 'uploadsuccess', note: body.name };
+        emitter.emit('uploadsuccess', event);
       } catch (e) {
         if (res.writableEnded) {
           // If a response was sent, an error occurred with a file.

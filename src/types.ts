@@ -10,10 +10,3 @@ export interface ExtendedRequest extends Request {
 export type NotificationEvent = {
   id: string, name: 'uploadsuccess' | 'uploaderror', note: string,
 };
-
-export type ReceivedBuffer = { type: 'Buffer', data: Array<any> };
-export interface LaunchMessage {
-  name: 'launch' | 'encoded',
-  id: string,
-  buffer?: Buffer | ReceivedBuffer,
-}
