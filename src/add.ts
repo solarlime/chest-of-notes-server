@@ -55,21 +55,22 @@ const addToGridFS = (
  */
 const convertFile = (file: Express.Multer.File, convertedFile: string) => new Promise<void>(
   (resolve, reject) => {
+    const stderr: Array<string> = [];
     const ffmpeg = child_process.spawn(
       'ffmpeg',
       [
         '-y', // Overwrite output
         '-i', '-', // Set input to stdin
+        '-loglevel', 'error', // Show only errors in stderr
         '-c:v', 'libx264', // Set video codec to h.264
         '-f', 'mp4', // Set output format to mp4
         convertedFile,
       ],
     );
 
-    ffmpeg.on('error', (error) => reject(error));
-
     ffmpeg.stderr.on('data', (chunk) => {
       const textChunk = chunk.toString('utf8');
+      stderr.push(textChunk);
       console.error(textChunk);
     });
 
@@ -77,7 +78,11 @@ const convertFile = (file: Express.Multer.File, convertedFile: string) => new Pr
       console.log('FFmpeg converting ended!');
       // Stdin still exists!
       ffmpeg.stdin.destroy();
-      resolve();
+      if (stderr.length > 0) {
+        reject(Error(stderr.join(' ')));
+      } else {
+        resolve();
+      }
     });
 
     ffmpeg.stdin.write(file.buffer);
