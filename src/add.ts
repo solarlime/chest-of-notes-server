@@ -80,7 +80,7 @@ const convertFile = (file: Express.Multer.File, convertedFile: string) => new Pr
       // Stdin still exists!
       ffmpeg.stdin.destroy();
       if (stderr.length > 0) {
-        reject(Error(stderr.join(' ')));
+        reject(Error('Your video can\'t be encoded. If you face this problem, tell me (solarlime.dev) about it.'));
       } else {
         resolve();
       }
@@ -128,14 +128,16 @@ async function addOne(req: ExtendedRequest, res: Response, emitter: EventEmitter
         delete req.file;
         await addToGridFS(body.id, dbFiles, bucketName, convertedFile);
         await col.updateOne({ id: body.id }, { $set: { id: body.id, uploadComplete: true } });
-        const event: NotificationEvent = { id: body.id, name: 'uploadsuccess', note: body.name };
+        const event: NotificationEvent<'uploadsuccess'> = { id: body.id, name: 'uploadsuccess', note: body.name };
         emitter.emit('uploadsuccess', event);
       } catch (e) {
         if (res.writableEnded) {
           // If a response was sent, an error occurred with a file.
           // So, we need to clear its note's data
           await col.deleteOne({ id: body.id });
-          const event: NotificationEvent = { id: body.id, name: 'uploaderror', note: body.name };
+          const event: NotificationEvent<'uploaderror'> = {
+            id: body.id, name: 'uploaderror', note: body.name, message: (e as Error).message,
+          };
           emitter.emit('uploaderror', event);
         } else {
           res.status(500).json({ status: 'Error: not added', data: (e as Error).message });

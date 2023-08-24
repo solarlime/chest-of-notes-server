@@ -7,7 +7,7 @@ import multer from 'multer';
 import cors from 'cors';
 import { MongoClient } from 'mongodb';
 import { fetchAll, fetchOne } from './fetch.js';
-import { ExtendedRequest, NotificationEvent } from './types.js';
+import { EventName, ExtendedRequest, NotificationEvent } from './types.js';
 import deleteOne from './delete.js';
 import addOne from './add.js';
 
@@ -65,7 +65,9 @@ wss.on('connection', (socket) => {
     clearTimeout(timeout);
   });
 
-  const callback = (event: NotificationEvent) => { socket.send(JSON.stringify({ event })); };
+  const callback = (event: NotificationEvent<EventName>) => {
+    socket.send(JSON.stringify({ event }));
+  };
   emitter.on('uploadsuccess', callback);
   emitter.on('uploaderror', callback);
 

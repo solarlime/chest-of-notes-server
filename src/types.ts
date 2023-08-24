@@ -7,6 +7,8 @@ export interface ExtendedRequest extends Request {
   col?: Collection,
 }
 
-export type NotificationEvent = {
-  id: string, name: 'uploadsuccess' | 'uploaderror', note: string,
+export type EventName = 'uploadsuccess' | 'uploaderror';
+
+export type NotificationEvent<T extends EventName> = {
+  id: string, name: T, note: string, message?: T extends 'uploaderror' ? string : never,
 };
