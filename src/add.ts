@@ -61,6 +61,7 @@ const convertFile = (file: Express.Multer.File, convertedFile: string) => new Pr
       [
         '-y', // Overwrite output
         '-i', '-', // Set input to stdin
+        '-filter:v', 'fps=30', // Set fps rate
         '-loglevel', 'error', // Show only errors in stderr
         '-c:v', 'libx264', // Set video codec to h.264
         '-f', 'mp4', // Set output format to mp4
