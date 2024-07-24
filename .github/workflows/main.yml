@@ -49,7 +49,7 @@ jobs:
           username: ${{ secrets.DEPLOY_SERVER_USERNAME }}
           port: ${{ secrets.DEPLOY_SERVER_PORT }}
           key: ${{ secrets.DEPLOY_SERVER_SSH }}
-          source: "./package.json, ./yarn.lock, ./.yarn, ./.yarnrc.yml, ./dist"
+          source: "./package.json, ./yarn.lock, ./dist, ./Dockerfile"
           target: ${{ env.DEPLOY_PATH }}/${{ env.GITHUB_REPO }}
 
       - name: Resolving dependencies & Restarting
@@ -61,12 +61,14 @@ jobs:
           port: ${{ secrets.DEPLOY_SERVER_PORT }}
           script: |
             cd ${{ env.DEPLOY_PATH }}/${{ env.GITHUB_REPO }}
-            rm -rf node_modules
-            export NVM_DIR="$HOME/.nvm"
-            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-            yarn install --immutable
-            cd ${{ env.DEPLOY_PATH }}
-            pm2 reload ecosystem.config.js --only ${{ env.GITHUB_REPO }}
+            rm docker.env
+            MONGO_URL=${{ secrets.ENV_MONGO_URL }} PORT=${{ secrets.ENV_PORT }}
+            printf "CHEST_OF_NOTES_URL=$MONGO_URL\nCHEST_OF_NOTES_PORT=$PORT" | cat > docker.env
+            cd ..
+            chmod +x combine_env.sh
+            bash combine_env.sh
+            docker-compose up --detach --force-recreate --build --no-deps --remove-orphans ${{ env.GITHUB_REPO }}
+            docker image prune -f
 
       - name: preview-url
         run: |
